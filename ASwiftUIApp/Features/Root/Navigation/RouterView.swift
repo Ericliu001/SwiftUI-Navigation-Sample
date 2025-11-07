@@ -20,7 +20,7 @@ struct RouterView: View {
     var body: some View {
         switch destination {
         case .conversation(let recipient):
-            scope.chatScope.value.conversationScope.value.conversationView(contact: recipient)
+            scope.conversationScope.value.conversationView(contact: recipient)
                 .toolbar(.hidden, for: .tabBar)
         case .contactDetail(let contact):
             scope.contactScope.value.contactDetailView(contact: contact)
@@ -39,5 +39,5 @@ struct RouterView: View {
 }
 
 #Preview {
-    RouterView(scope: RootScope.mock ,destination: .contactList)
+    RouterView(scope: RootScope.MOCK ,destination: .contactList)
 }

@@ -9,7 +9,7 @@
 import Foundation
 import SwiftUI
 
-final class RootScope: ContactScope.Parent, ChatScope.Parent, SettingsScope.Parent {
+final class RootScope: ContactScope.Parent, ChatScope.Parent, SettingsScope.Parent, ConversationScope.Parent {
     
     init() {
         print("🟢 RootScope created")
@@ -33,6 +33,7 @@ final class RootScope: ContactScope.Parent, ChatScope.Parent, SettingsScope.Pare
     // Managing feature domains at the top level
     lazy var contactScope: Weak<ContactScope> = Weak({ ContactScope(parent: self) })
     lazy var chatScope: Weak<ChatScope> = Weak( {ChatScope(parent: self)})
+    lazy var conversationScope: Weak<ConversationScope> = Weak({ ConversationScope(parent: self) })
     lazy var settingsScope: Weak<SettingsScope> = Weak({ SettingsScope(parent: self) })
 
     // View Factory Methods
@@ -40,12 +41,18 @@ final class RootScope: ContactScope.Parent, ChatScope.Parent, SettingsScope.Pare
     func routerView(dest: Destination) -> some View {
         RouterView(scope: self, destination: dest)
     }
+
+    // View factory delegation for cross-scope view creation
+    @ViewBuilder
+    func conversationView(contact: Contact) -> any View {
+        conversationScope.value.conversationView(contact: contact)
+    }
 }
 
 
 #if DEBUG
 extension RootScope {
-    static var mock: RootScope = RootScope()
+    static var MOCK: RootScope = RootScope()
 }
 
 #endif

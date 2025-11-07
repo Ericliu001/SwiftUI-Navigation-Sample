@@ -59,5 +59,5 @@ struct ProfileSettingsView: View {
 }
 
 #Preview {
-    ProfileSettingsView(scope: SettingsScope.mock)
+    ProfileSettingsView(scope: SettingsScope.MOCK)
 }

@@ -14,6 +14,11 @@ protocol ChatRouter {
     func gotoContactDetail(_ contact: Contact)
 
     func gotoContactList()
+
+    // Generic navigation methods
+    func goBack()
+
+    func popToRoot()
 }
 
 
@@ -31,6 +36,14 @@ class MockChatRouter: ChatRouter {
 
     func gotoContactDetail(_ contact: Contact) {
         // no-op
+    }
+
+    func goBack() {
+        // No-op
+    }
+
+    func popToRoot() {
+        // No-op
     }
 }
 

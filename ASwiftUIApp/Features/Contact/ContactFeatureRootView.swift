@@ -35,5 +35,5 @@ struct ContactFeatureRootView: View {
 }
 
 #Preview {
-    ContactFeatureRootView(scope:  ContactScope.mock)
+    ContactFeatureRootView(scope:  ContactScope.MOCK)
 }

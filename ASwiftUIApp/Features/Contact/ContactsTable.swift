@@ -126,5 +126,5 @@ struct VideoLabelView: View {
 }
 
 #Preview {
-    ContactTable(scope: ContactScope.mock)
+    ContactTable(scope: ContactScope.MOCK)
 }

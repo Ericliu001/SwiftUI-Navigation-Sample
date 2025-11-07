@@ -84,5 +84,5 @@ struct ConversationView: View {
 }
 
 #Preview {
-    ConversationView(scope: ConversationScope.mock, contact: Contact.mock[0])
+    ConversationView(scope: ConversationScope.MOCK, contact: Contact.mock[0])
 }

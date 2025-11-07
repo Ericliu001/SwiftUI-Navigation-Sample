@@ -51,10 +51,6 @@ extension SettingsScope {
 
 #if DEBUG
 extension SettingsScope {
-    private class MockParent: Parent {
-        var settingsRouter: SettingsRouter = MockSettingsRouter.shared
-    }
-
-    static let mock = SettingsScope(parent: MockParent())
+    static var MOCK: SettingsScope = SettingsScope(parent: RootScope.MOCK)
 }
 #endif

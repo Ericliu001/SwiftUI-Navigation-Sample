@@ -14,6 +14,11 @@ protocol SettingsRouter {
     func gotoPrivacy()
 
     func gotoChats()
+
+    // Generic navigation methods
+    func goBack()
+
+    func popToRoot()
 }
 
 #if DEBUG
@@ -30,6 +35,14 @@ class MockSettingsRouter: SettingsRouter {
 
 
     func goToProfile() {
+        // No-op
+    }
+
+    func goBack() {
+        // No-op
+    }
+
+    func popToRoot() {
         // No-op
     }
 }

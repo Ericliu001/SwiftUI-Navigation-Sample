@@ -38,5 +38,5 @@ struct ChatFeatureRootView: View {
 }
 
 #Preview {
-    ChatFeatureRootView(scope: ChatScope.mock)
+    ChatFeatureRootView(scope: ChatScope.MOCK)
 }

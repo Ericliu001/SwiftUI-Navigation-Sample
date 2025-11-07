@@ -32,7 +32,7 @@ final class ConversationScope {
     }
 }
 
-extension ConversationScope: ChatListItemScope.Parent {
+extension ConversationScope {
     protocol Parent {
         var chatRouter: ChatRouter { get }
     }
@@ -41,10 +41,6 @@ extension ConversationScope: ChatListItemScope.Parent {
 
 #if DEBUG
 extension ConversationScope {
-    private class MockParent: Parent {
-        var chatRouter: ChatRouter = MockChatRouter.shared
-    }
-    
-    static let mock = ConversationScope(parent: MockParent())
+    static var MOCK: ConversationScope = ConversationScope(parent: RootScope.MOCK)
 }
 #endif

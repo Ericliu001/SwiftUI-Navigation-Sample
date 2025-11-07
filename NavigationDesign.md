@@ -66,11 +66,39 @@ final class Router: ContactRouter, ChatRouter, SettingsRouter {
     var selectedTab: Tabs = .chats
     var chatTabPath: [Destination] = []
     var settingsTabPath: [Destination] = []
-    // ... navigation methods for each tab ...
+
+    // Computed property for current navigation stack
+    var currentStack: [Destination] {
+        get {
+            switch selectedTab {
+            case .chats: return chatTabPath
+            case .settings: return settingsTabPath
+            }
+        }
+        set {
+            switch selectedTab {
+            case .chats: chatTabPath = newValue
+            case .settings: settingsTabPath = newValue
+            }
+        }
+    }
+
+    // Generic navigation methods
+    func goBack() {
+        if !currentStack.isEmpty {
+            currentStack.removeLast()
+        }
+    }
+
+    func popToRoot() {
+        currentStack.removeAll()
+    }
+
+    // ... feature-specific navigation methods for each tab ...
 }
 ```
 
-The `Router` class serves as the single source of truth for navigation state. It manages a separate navigation path for each tab (e.g., `chatTabPath`, `settingsTabPath`) and provides methods for programmatic navigation. While the implementation of routing logic is centralized, the interfaces for routing are defined by features, improving feature isolation.
+The `Router` class serves as the single source of truth for navigation state. It manages a separate navigation path for each tab (e.g., `chatTabPath`, `settingsTabPath`) and provides methods for programmatic navigation. The `currentStack` computed property abstracts away tab-specific logic, enabling generic navigation methods that work across all tabs. While the implementation of routing logic is centralized, the interfaces for routing are defined by features, improving feature isolation.
 
 #### Feature-Specific Router Protocols
 
@@ -78,6 +106,10 @@ The `Router` class serves as the single source of truth for navigation state. It
 protocol ContactRouter {
     func gotoConversation(recipient: Contact)
     func gotoContactDetail(_ contact: Contact)
+
+    // Generic navigation methods
+    func goBack()
+    func popToRoot()
 }
 ```
 
@@ -86,6 +118,7 @@ Each feature defines its own routing protocol, allowing for:
 - **Feature Isolation**: Features don't depend on concrete router implementation
 - **Testability**: Easy to mock routers for unit tests
 - **Dependency Inversion**: Features depend on abstractions, not concretions
+- **Generic Navigation**: Common navigation operations (goBack, popToRoot) are available across all router protocols
 
 **Key Features:**
 - Single source of truth for navigation state
