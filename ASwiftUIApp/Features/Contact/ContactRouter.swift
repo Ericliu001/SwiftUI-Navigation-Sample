@@ -12,6 +12,11 @@ protocol ContactRouter {
     func gotoConversation(recipient: Contact)
 
     func gotoContactDetail(_ contact: Contact)
+
+    // Generic navigation methods
+    func goBack()
+
+    func popToRoot()
 }
 
 
@@ -23,6 +28,14 @@ class MockContactRouter: ContactRouter {
 
     func gotoConversation(recipient: Contact) {
         // no-op
+    }
+
+    func goBack() {
+        // No-op
+    }
+
+    func popToRoot() {
+        // No-op
     }
 
     static var shared: MockContactRouter = MockContactRouter()

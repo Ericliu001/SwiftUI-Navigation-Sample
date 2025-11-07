@@ -54,5 +54,5 @@ struct SettingsHomeView: View {
 }
 
 #Preview {
-    SettingsHomeView(scope: SettingsScope.mock)
+    SettingsHomeView(scope: SettingsScope.MOCK)
 }

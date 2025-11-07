@@ -8,19 +8,21 @@ The scope tree structure is conceptually similar to SwiftUI's view tree hierarch
 
 ## Scope Tree Structure
 
-Scopes are organized in a tree hierarchy where:
-- Each scope can have one or more child scopes
+Scopes are organized in a **flat tree hierarchy** where:
+- RootScope acts as the parent for all feature scopes
 - Parent scopes provide dependencies to their children
 - Child scopes access parent dependencies through protocol contracts
-- The tree structure enables feature isolation and dependency flow control
+- The flat structure enables feature isolation and simplifies dependency management
 
 ```
 RootScope
 ├── ContactScope
 ├── ChatScope
-│   └── ChatListItemScope
+├── ConversationScope
 └── SettingsScope
 ```
+
+**Architectural Evolution**: This project initially had nested scopes (e.g., ConversationScope as a child of ChatScope) but was refactored to a flat structure based on learnings from production applications. The flat structure eliminates nested dependency chains, simplifies navigation, and makes cross-scope communication easier.
 
 **Key Principle**: The scope tree hierarchy is independent of the view tree. A parent scope doesn't need to correspond to a parent view, and child scopes can be accessed from any part of the view hierarchy that has access to the appropriate scope reference.
 
@@ -44,22 +46,15 @@ final class ChatScope {
     lazy var router: ChatRouter = parent.chatRouter
     
     // 3. Local Dependencies - Scope-specific resources
-    lazy var messages: [Message] = Message.sampleData
-    
-    // 4. Child Scopes - Managing child feature domains using Weak<> wrapper
-    lazy var chatListItemScope: Weak<ChatListItemScope> = Weak({ ChatListItemScope(parent: self) })
-    
-    // 5. View Factory Methods - Creating views with proper dependency injection
+    lazy var chats: [Chat] = Chat.mock
+
+    // 4. View Factory Methods - Creating views with proper dependency injection
     func chatFeatureRootview() -> some View {
         ChatFeatureRootView(scope: self)
     }
-    
+
     func chatListView() -> some View {
         ChatListView(scope: self)
-    }
-    
-    func conversationView(contact: Contact) -> some View {
-        ConversationView(scope: self, contact: contact)
     }
 }
 ```
@@ -72,23 +67,39 @@ final class ChatScope {
 
 3. **Local Dependencies**: Scope-specific state and resources that belong to this particular feature domain
 
-4. **Child Scopes**: References to child scopes using `Weak<>` wrapper for memory efficiency, demonstrating the hierarchical nature of the scope tree
+4. **View Factory Methods**: Functions that create views with the scope properly injected, ensuring consistent dependency provision
 
-5. **View Factory Methods**: Functions that create views with the scope properly injected, ensuring consistent dependency provision
-
-**RootScope Example** (`ASwiftUIApp/Features/Root/RootScope.swift:1`) - showing child scopes:
+**RootScope Example** (`ASwiftUIApp/Features/Root/RootScope.swift:1`) - showing the flat scope tree:
 ```swift
-final class RootScope: ContactScope.Parent, ChatScope.Parent, SettingsScope.Parent {
+final class RootScope: ContactScope.Parent, ChatScope.Parent,
+                       SettingsScope.Parent, ConversationScope.Parent {
     // Local dependencies - root-level resources
     lazy var rootRouter = Router()
     lazy var dataModel = DataModel()
-    
-    // Child scopes - managed feature domains using Weak<> wrapper for memory efficiency
+
+    // Router protocol implementations for child scopes
+    lazy var contactRouter: ContactRouter = rootRouter
+    lazy var chatRouter: ChatRouter = rootRouter
+    lazy var settingsRouter: SettingsRouter = rootRouter
+
+    // Child scopes - all feature scopes are direct children (flat structure)
     lazy var contactScope: Weak<ContactScope> = Weak({ ContactScope(parent: self) })
     lazy var chatScope: Weak<ChatScope> = Weak({ ChatScope(parent: self) })
+    lazy var conversationScope: Weak<ConversationScope> = Weak({ ConversationScope(parent: self) })
     lazy var settingsScope: Weak<SettingsScope> = Weak({ SettingsScope(parent: self) })
+
+    // View factory delegation for cross-scope view creation
+    @ViewBuilder
+    func conversationView(contact: Contact) -> any View {
+        conversationScope.value.conversationView(contact: contact)
+    }
 }
 ```
+
+**Key Architectural Patterns:**
+- **Flat Structure**: All feature scopes are direct children of RootScope
+- **View Factory Delegation**: RootScope provides view factory methods for cross-scope access
+- **Centralized Router**: Single router instance implements all router protocols
 
 ### Parent Protocol Pattern
 
@@ -105,6 +116,16 @@ extension ContactScope {
 extension ChatScope {
     protocol Parent {
         var chatRouter: ChatRouter { get }
+
+        // View Factory Methods - for cross-scope view creation
+        @ViewBuilder
+        func conversationView(contact: Contact) -> any View
+    }
+}
+
+extension ConversationScope {
+    protocol Parent {
+        var chatRouter: ChatRouter { get }
     }
 }
 
@@ -113,16 +134,13 @@ extension SettingsScope {
         var settingsRouter: SettingsRouter { get }
     }
 }
-
-extension ChatListItemScope {
-    protocol Parent {
-        // No parent dependencies needed currently
-        // Demonstrates that even simple scopes follow the parent protocol pattern
-    }
-}
 ```
 
-**Design Rationale**: Parent protocols enforce dependency contracts at compile time and enable dependency inversion, making the architecture testable and flexible.
+**Design Rationale**:
+- **Dependency Contracts**: Parent protocols enforce dependency contracts at compile time
+- **Dependency Inversion**: Enables testability and flexibility through abstraction
+- **View Factory Delegation**: Parent protocols can include view factory methods for creating sibling scope views
+- **Scope Purpose**: Scopes should only be created when they manage state or coordinate dependencies—simple stateless views don't need scopes
 
 ## Architecture Patterns
 
@@ -251,19 +269,54 @@ class Weak<T: AnyObject> {
 
 ```swift
 // In views accessing child scopes
-struct ChatListView: View {
-    let scope: ChatScope
-    
+struct RouterView: View {
+    private let scope: RootScope
+    private let destination: Destination
+
     var body: some View {
-        List(chats) { chat in
-            // Access via .value property
-            scope.chatListItemScope.value.listItemView(chat: chat)
+        switch destination {
+        case .conversation(let recipient):
+            // Access sibling scope via .value property
+            scope.conversationScope.value.conversationView(contact: recipient)
         }
     }
 }
 ```
 
-This approach ensures efficient memory usage while maintaining the lazy instantiation benefits crucial for performance in large scope hierarchies.
+This approach ensures efficient memory usage while maintaining the lazy instantiation benefits crucial for performance in large scope hierarchies. The flat structure means accessing any scope is a simple `.value` call from RootScope, rather than chaining multiple `.value` accesses.
+
+### View Factory Delegation
+
+When a scope needs to create views from sibling scopes, it delegates to the parent through protocol methods:
+
+```swift
+extension ChatScope {
+    protocol Parent {
+        var chatRouter: ChatRouter { get }
+
+        // View factory method in parent protocol
+        @ViewBuilder
+        func conversationView(contact: Contact) -> any View
+    }
+}
+
+// RootScope implements the view factory method
+extension RootScope {
+    @ViewBuilder
+    func conversationView(contact: Contact) -> any View {
+        conversationScope.value.conversationView(contact: contact)
+    }
+}
+
+// ChatScope can delegate to parent for conversation views
+// (if needed, though typically handled by router in this app)
+```
+
+**Benefits of View Factory Delegation:**
+- **Decoupling**: Child scopes don't need direct access to sibling scopes
+- **Centralized Creation**: Complex view instantiation managed by RootScope
+- **Cleaner Contracts**: View factory methods become part of the dependency contract
+- **Better Testing**: Easier to mock view creation for tests
 
 ## Benefits & Design Rationale
 
@@ -271,19 +324,24 @@ This approach ensures efficient memory usage while maintaining the lazy instanti
 The tree structure grows naturally with application complexity. New features are added as new scopes without affecting existing code. The `Weak<>` wrapper ensures that scope hierarchies remain memory-efficient even as they grow larger.
 
 ### Testability
-Protocol-based parent contracts enable easy mocking:
+Protocol-based parent contracts enable easy mocking. The recommended pattern is to reuse `RootScope.MOCK`:
 ```swift
 #if DEBUG
 extension ContactScope {
-    private class MockParent: Parent {
-        var contactRouter: ContactRouter = MockContactRouter()
-        var dataModel: DataModel = MockDataModel()
-    }
-    
-    static let mock = ContactScope(parent: MockParent())
+    static var MOCK: ContactScope = ContactScope(parent: RootScope.MOCK)
+}
+
+extension RootScope {
+    static var MOCK: RootScope = RootScope()
 }
 #endif
 ```
+
+**Benefits of Reusing RootScope.MOCK:**
+- Less boilerplate code (no separate MockParent classes needed)
+- Consistent mock behavior across all scopes
+- Easier maintenance when RootScope dependencies change
+- Single source of truth for test data
 
 ### Maintainability
 - **Clear Boundaries**: Each scope has well-defined responsibilities

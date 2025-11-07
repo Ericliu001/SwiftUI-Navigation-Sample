@@ -85,5 +85,5 @@ struct ContactDetailLabelStyle: LabeledContentStyle {
 }
 
 #Preview {
-    ContactInfoView(scope: ContactScope.mock, contact: .mock[0])
+    ContactInfoView(scope: ContactScope.MOCK, contact: .mock[0])
 }

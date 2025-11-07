@@ -62,15 +62,7 @@ extension ContactScope {
 
 
 #if DEBUG
-
-
 extension ContactScope {
-    class MockParent: ContactScope.Parent {
-        var dataModel: DataModel = DataModel()
-
-        var contactRouter: ContactRouter = MockContactRouter.shared
-    }
-
-    static var mock: ContactScope = ContactScope(parent: MockParent())
+    static var MOCK: ContactScope = ContactScope(parent: RootScope.MOCK)
 }
 #endif

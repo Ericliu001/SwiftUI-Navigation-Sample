@@ -9,7 +9,7 @@
 import Foundation
 import SwiftUI
 
-final class ChatScope: ConversationScope.Parent, ChatListItemScope.Parent {
+final class ChatScope {
     // Parent Reference
     // Connection to parent scope through protocol-defined interface
     private let parent: Parent
@@ -31,8 +31,7 @@ final class ChatScope: ConversationScope.Parent, ChatListItemScope.Parent {
 
     // Child Scopes
     // Managing child feature domains within the chat scope
-    lazy var conversationScope: Weak<ConversationScope> = Weak({ ConversationScope(parent: self) })
-    lazy var chatListItemScope: Weak<ChatListItemScope> = Weak({ ChatListItemScope(parent: self) })
+    // (ChatListItemScope removed - ChatListItemView doesn't require scope dependencies)
     
     // View Factory Methods
     // Creating views with proper dependency injection
@@ -48,16 +47,17 @@ final class ChatScope: ConversationScope.Parent, ChatListItemScope.Parent {
 extension ChatScope {
     protocol Parent {
         var chatRouter: ChatRouter { get }
+
+        // View Factory Methods
+        // Delegate cross-scope view creation to parent
+        @ViewBuilder
+        func conversationView(contact: Contact) -> any View
     }
 }
 
 #if DEBUG
 extension ChatScope {
-    private class MockParent: Parent {
-        var chatRouter: ChatRouter = MockChatRouter.shared
-    }
-
-    static let mock = ChatScope(parent: MockParent())
+    static var MOCK: ChatScope = ChatScope(parent: RootScope.MOCK)
 }
 
 #endif

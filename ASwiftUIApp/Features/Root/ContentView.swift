@@ -50,6 +50,6 @@ struct ContentView: View {
 }
 
 #Preview() {
-    ContentView(scope: RootScope.mock)
+    ContentView(scope: RootScope.MOCK)
 }
 

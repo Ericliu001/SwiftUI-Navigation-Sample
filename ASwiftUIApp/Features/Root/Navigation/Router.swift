@@ -15,6 +15,37 @@ final class Router: ContactRouter, ChatRouter, SettingsRouter {
     var chatTabPath : [Destination] = []
     var settingsTabPath: [Destination] = []
 
+    // Computed property for current navigation stack
+    var currentStack: [Destination] {
+        get {
+            switch selectedTab {
+            case .chats:
+                return chatTabPath
+            case .settings:
+                return settingsTabPath
+            }
+        }
+        set {
+            switch selectedTab {
+            case .chats:
+                chatTabPath = newValue
+            case .settings:
+                settingsTabPath = newValue
+            }
+        }
+    }
+
+    // Generic navigation methods
+    func goBack() {
+        if !currentStack.isEmpty {
+            currentStack.removeLast()
+        }
+    }
+
+    func popToRoot() {
+        currentStack.removeAll()
+    }
+
     func gotoChats() {
         selectedTab = .chats
         chatTabPath = []

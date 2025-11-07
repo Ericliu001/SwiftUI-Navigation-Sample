@@ -19,7 +19,7 @@ struct ChatListView: View {
                         scope.chatRouter.gotoConversation(recipient: chat.recipient)
                     })
                     {
-                        scope.chatListItemScope.value.listItemView(chat: chat)
+                        ChatListItemView(chat: chat)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                     }
@@ -49,7 +49,7 @@ struct ChatListView: View {
 }
 
 #Preview {
-    ChatListView(scope: ChatScope.mock)
+    ChatListView(scope: ChatScope.MOCK)
 }
 
 

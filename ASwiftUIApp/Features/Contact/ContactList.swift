@@ -57,5 +57,5 @@ struct ContactList: View {
 }
 
 #Preview {
-    ContactList(scope: ContactScope.mock)
+    ContactList(scope: ContactScope.MOCK)
 }

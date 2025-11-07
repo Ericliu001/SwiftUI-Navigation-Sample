@@ -35,5 +35,5 @@ struct ContactDetailView: View {
 }
 
 #Preview {
-    ContactDetailView(scope: ContactScope.mock, contact: .mock.first!)
+    ContactDetailView(scope: ContactScope.MOCK, contact: .mock.first!)
 }

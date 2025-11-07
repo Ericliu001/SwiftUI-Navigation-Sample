@@ -43,5 +43,5 @@ struct PrivacySettingsView: View {
 }
 
 #Preview {
-    PrivacySettingsView(scope: SettingsScope.mock)
+    PrivacySettingsView(scope: SettingsScope.MOCK)
 }

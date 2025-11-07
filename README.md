@@ -69,7 +69,34 @@ final class Router: ContactRouter, ChatRouter, SettingsRouter {
     var selectedTab: Tabs = .chats
     var chatTabPath: [Destination] = []
     var settingsTabPath: [Destination] = []
-    // ... navigation methods for each tab ...
+
+    // Computed property for current navigation stack
+    var currentStack: [Destination] {
+        get {
+            switch selectedTab {
+            case .chats: return chatTabPath
+            case .settings: return settingsTabPath
+            }
+        }
+        set {
+            switch selectedTab {
+            case .chats: chatTabPath = newValue
+            case .settings: settingsTabPath = newValue
+            }
+        }
+    }
+
+    // Generic navigation methods
+    func goBack() {
+        if !currentStack.isEmpty {
+            currentStack.removeLast()
+        }
+    }
+
+    func popToRoot() {
+        currentStack.removeAll()
+    }
+    // ... feature-specific navigation methods for each tab ...
 }
 ```
 
@@ -81,6 +108,10 @@ The `Router` class serves as the single source of truth for navigation state. It
 protocol ContactRouter {
     func gotoConversation(recipient: Contact)
     func gotoContactDetail(_ contact: Contact)
+
+    // Generic navigation methods
+    func goBack()
+    func popToRoot()
 }
 ```
 
@@ -198,17 +229,17 @@ The Scope Architecture implements a hierarchical dependency injection system tha
 
 ### 1. Scope Hierarchy
 
-The application uses a tree structure of scopes:
+The application uses a **flat tree structure** of scopes where RootScope acts as the parent for all feature scopes:
 
 ```
 RootScope
 ├── ContactScope
 ├── ChatScope
-│   └── ChatListItemScope
+├── ConversationScope
 └── SettingsScope
 ```
 
-Each scope manages its own dependencies and can provide dependencies to child scopes.
+This flat structure eliminates nested dependency chains, simplifies navigation, and makes cross-scope communication easier. Each scope manages its own dependencies and receives them from RootScope.
 
 ### 2. Scope Implementation Pattern
 
@@ -223,10 +254,7 @@ final class ChatScope {
     lazy var router: ChatRouter = parent.chatRouter
     
     // Local Dependencies - feature-specific state and resources
-    lazy var messages: [Message] = Message.sampleData
-    
-    // Child Scopes - using Weak<> wrapper for memory efficiency
-    lazy var chatListItemScope: Weak<ChatListItemScope> = Weak({ ChatListItemScope(parent: self) })
+    lazy var chats: [Chat] = Chat.mock
 
     // Initialization
     init(parent: Parent) {
@@ -237,9 +265,9 @@ final class ChatScope {
     func chatFeatureRootview() -> some View {
         ChatFeatureRootView(scope: self)
     }
-    
-    func conversationView(contact: Contact) -> some View {
-        ConversationView(scope: self, contact: contact)
+
+    func chatListView() -> some View {
+        ChatListView(scope: self)
     }
 }
 
@@ -247,6 +275,10 @@ extension ChatScope {
     // Parent Protocol - defines required dependencies
     protocol Parent {
         var chatRouter: ChatRouter { get }
+
+        // View Factory Methods - for cross-scope view creation
+        @ViewBuilder
+        func conversationView(contact: Contact) -> any View
     }
 }
 ```
@@ -254,56 +286,49 @@ extension ChatScope {
 **Key Components of a Scope:**
 - **Parent Reference**: Receives dependencies from parent through protocols
 - **Local Dependencies**: Manages feature-specific state and resources
-- **Child Scopes**: Can contain other scopes for sub-features (using `Weak<>` wrapper)
 - **View Factory Methods**: Creates views with proper dependency injection
-- **Parent Protocol**: Defines contract for required dependencies
+- **Parent Protocol**: Defines contract for required dependencies, including view factory delegation
 - **Lazy Loading**: Dependencies are created only when needed
+
+**Note on Scope Design**: Scopes should only be created when they manage state or coordinate dependencies. Simple stateless views don't require separate scopes.
 
 ### 3. Scope Tree Structure
 
 The application organizes scopes in a hierarchical tree, where each scope can contain child scopes and receives dependencies from its parent:
 
 ```swift
-// Parent scope providing shared dependencies
-final class RootScope: ChatScope.Parent, ContactScope.Parent, SettingsScope.Parent {
+// Parent scope providing shared dependencies in a flat structure
+final class RootScope: ContactScope.Parent, ChatScope.Parent,
+                       ConversationScope.Parent, SettingsScope.Parent {
     lazy var rootRouter = Router()
     lazy var dataModel = DataModel()
-    
+
     // Protocol implementations for child scopes
     lazy var chatRouter: ChatRouter = rootRouter
     lazy var contactRouter: ContactRouter = rootRouter
-    
-    // Child scopes - using Weak<> wrapper for consistent memory management
+    lazy var settingsRouter: SettingsRouter = rootRouter
+
+    // Child scopes - all are direct children (flat structure)
     lazy var contactScope: Weak<ContactScope> = Weak({ ContactScope(parent: self) })
     lazy var chatScope: Weak<ChatScope> = Weak({ ChatScope(parent: self) })
+    lazy var conversationScope: Weak<ConversationScope> = Weak({ ConversationScope(parent: self) })
     lazy var settingsScope: Weak<SettingsScope> = Weak({ SettingsScope(parent: self) })
-}
 
-// Child scope within the chat domain
-final class ChatListItemScope {
-    private let parent: Parent
-    
-    init(parent: Parent) {
-        self.parent = parent
-    }
-    
-    func listItemView(chat: Chat) -> some View {
-        ChatListItemView(chat: chat)
-    }
-}
-
-extension ChatListItemScope {
-    protocol Parent {
-        // No parent dependencies needed currently
+    // View factory delegation for cross-scope view creation
+    @ViewBuilder
+    func conversationView(contact: Contact) -> any View {
+        conversationScope.value.conversationView(contact: contact)
     }
 }
 ```
 
-**Tree Benefits:**
-- **Dependency Flow Control**: Dependencies flow down from parent to child
-- **Feature Isolation**: Each scope manages its own domain
+**Flat Structure Benefits:**
+- **Simplified Dependencies**: All feature scopes access RootScope directly
+- **Easier Navigation**: No nested scope chains to traverse
+- **Feature Isolation**: Each scope manages its own domain independently
 - **Lazy Creation**: Scopes are created only when needed
 - **Clean Boundaries**: Clear separation between different app areas
+- **View Factory Delegation**: RootScope can create views from any scope for cross-scope access
 
 ### 4. Weak<> Utility for Memory Management
 
@@ -374,13 +399,13 @@ struct ChatFeatureRootView: View {
     }
 }
 
-// Example of accessing child scopes with .value
+// Example of direct view usage (no scope needed for simple views)
 struct ChatListView: View {
     let scope: ChatScope
-    
+
     var body: some View {
-        List(chats) { chat in
-            scope.chatListItemScope.value.listItemView(chat: chat)  // Access via .value
+        List(scope.chats) { chat in
+            ChatListItemView(chat: chat)  // Simple view, no scope needed
         }
     }
 }
@@ -393,19 +418,20 @@ Views receive their dependencies through scopes, enabling clean separation and e
 ```swift
 #if DEBUG
 extension ChatScope {
-    private class MockParent: Parent {
-        var chatRouter: ChatRouter = MockChatRouter.shared
-    }
+    static var MOCK: ChatScope = ChatScope(parent: RootScope.MOCK)
+}
 
-    static let mock = ChatScope(parent: MockParent())
+extension RootScope {
+    static var MOCK: RootScope = RootScope()
 }
 #endif
 ```
 
 The scope architecture enables comprehensive testing through:
-- **Mock Parent Implementations**: Easy to create test doubles for parent dependencies
+- **Reusable RootScope.MOCK**: All scopes can reuse the same root mock, reducing boilerplate
 - **Isolated Testing**: Each scope can be tested independently
 - **Protocol Abstractions**: Mock routers and dependencies through protocol conformance
+- **Consistent Pattern**: Uppercase MOCK naming convention for all test instances
 
 ### 7. Integration with Navigation Architecture
 
